@@ -1,0 +1,11 @@
+{
+  "name": "@billetera/sdk",
+  "version": "0.1.0",
+  "description": "SDK para cobrar con la Billetera (pagos QR, consulta de cobros y verificación de webhooks)",
+  "license": "UNLICENSED",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=18" },
+  "scripts": { "build": "tsc -p tsconfig.json" }
+}

@@ -1,0 +1,6 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "outDir": "../../dist/apps/pos-demo" },
+  "include": ["src/**/*", "../../libs/**/*"],
+  "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
+}

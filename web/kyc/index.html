@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#4f46e5" />
+  <title>Verificar identidad</title>
+  <link rel="stylesheet" href="/pay/pay.css" />
+  <link rel="stylesheet" href="/kyc/kyc.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <div class="brand"><span class="logo">B</span> Billetera</div>
+      <button id="logout" class="link hidden" type="button">Salir</button>
+    </header>
+    <div id="root"><p class="muted center">Cargando…</p></div>
+  </main>
+
+  <template id="tpl-form">
+    <form id="kyc-form" class="card" novalidate>
+      <h1>Verifica tu identidad</h1>
+      <p class="muted">Necesitamos confirmar quién eres para habilitar tu tarjeta virtual. Completa los datos
+        <strong>tal como aparecen en tu documento</strong>.</p>
+      <p class="alert hidden" role="alert" id="form-error"></p>
+
+      <fieldset>
+        <legend>1 · Datos personales</legend>
+        <div class="row">
+          <label>Nombres <input name="firstName" autocomplete="given-name" required /></label>
+          <label>Apellidos <input name="lastName" autocomplete="family-name" required /></label>
+        </div>
+        <div class="row">
+          <label>Fecha de nacimiento <input name="birthDate" type="date" autocomplete="bday" required /></label>
+          <label>Nacionalidad <select name="nationality" data-countries required></select></label>
+        </div>
+        <div class="row">
+          <label>Teléfono <input name="phone" type="tel" autocomplete="tel" placeholder="+54 9 11 5555 0000" required /></label>
+          <label>Ocupación <input name="occupation" placeholder="Estudiante, empleado…" required /></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>2 · Documento</legend>
+        <div class="row">
+          <label>Tipo
+            <select name="documentType" required>
+              <option value="DNI">DNI</option>
+              <option value="CEDULA">Cédula de identidad</option>
+              <option value="PASSPORT">Pasaporte</option>
+            </select>
+          </label>
+          <label>Número <input name="documentNumber" autocomplete="off" required /></label>
+        </div>
+        <label>Fecha de vencimiento <input name="documentExpiresAt" type="date" required /></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>3 · Domicilio</legend>
+        <label>Calle y número <input name="addressLine1" autocomplete="address-line1" required /></label>
+        <div class="row">
+          <label>Ciudad <input name="city" autocomplete="address-level2" required /></label>
+          <label>Provincia / estado <input name="state" autocomplete="address-level1" required /></label>
+        </div>
+        <div class="row">
+          <label>Código postal <input name="postalCode" autocomplete="postal-code" required /></label>
+          <label>País <select name="country" data-countries required></select></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>4 · Fotos</legend>
+        <p class="muted small">JPG, PNG o WEBP (el documento también puede ser PDF), máximo 5 MB.
+          En el celular se abre la cámara.</p>
+        <div class="uploads">
+          <label class="upload" data-for="documentFront">
+            <span class="up-title">Frente del documento</span>
+            <img alt="" class="hidden" />
+            <span class="up-hint">Tocar para sacar foto</span>
+            <input type="file" name="documentFront" accept="image/*,application/pdf" capture="environment" required />
+          </label>
+          <label class="upload" data-for="documentBack">
+            <span class="up-title">Dorso del documento</span>
+            <img alt="" class="hidden" />
+            <span class="up-hint">Tocar para sacar foto</span>
+            <input type="file" name="documentBack" accept="image/*,application/pdf" capture="environment" />
+          </label>
+          <label class="upload" data-for="selfie">
+            <span class="up-title">Selfie</span>
+            <img alt="" class="hidden" />
+            <span class="up-hint">Mirando a la cámara, con buena luz</span>
+            <input type="file" name="selfie" accept="image/*" capture="user" required />
+          </label>
+        </div>
+      </fieldset>
+
+      <label class="consent"><input type="checkbox" name="consent" required />
+        Declaro que los datos son verdaderos y acepto que se usen para verificar mi identidad.</label>
+      <button class="primary" type="submit">Enviar verificación</button>
+    </form>
+  </template>
+
+  <script type="module" src="/kyc/kyc.js"></script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+name: billetera
+
+# Infraestructura compartida + microservicios.
+#   Solo infraestructura (para desarrollar con `npm run dev`):  npm run infra:up
+#   Todo dentro de Docker:                                      docker compose --profile apps up -d --build
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: billetera
+      POSTGRES_PASSWORD: billetera
+      POSTGRES_DB: postgres
+    ports: ["5434:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U billetera"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: billetera
+      RABBITMQ_DEFAULT_PASS: billetera
+    ports:
+      - "5672:5672"
+      - "15672:15672" # panel: http://localhost:15672 (billetera / billetera)
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      retries: 10
+
+  # Servidor SMTP de pruebas: atrapa todos los correos. Bandeja: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.21
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  # ---------- Microservicios (perfil "apps") ----------
+  api-gateway:
+    profiles: ["apps"]
+    build: { context: ., args: { APP: api-gateway } }
+    env_file: .env
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:3001
+      WALLET_SERVICE_URL: http://wallet-service:3002
+      CARD_SERVICE_URL: http://card-service:3004
+      PAYMENTS_SERVICE_URL: http://payments-service:3003
+      KYC_SERVICE_URL: http://kyc-service:3005
+    ports: ["4000:4000"]
+    depends_on: [auth-service, wallet-service, card-service, payments-service, kyc-service]
+
+  auth-service:
+    profiles: ["apps"]
+    build: { context: ., args: { APP: auth-service } }
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      RABBITMQ_URL: amqp://billetera:billetera@rabbitmq:5672
+    ports: ["3001:3001"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  notification-service:
+    profiles: ["apps"]
+    build: { context: ., args: { APP: notification-service } }
+    env_file: .env
+    environment:
+      RABBITMQ_URL: amqp://billetera:billetera@rabbitmq:5672
+      SMTP_HOST: mailpit
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+
+  wallet-service:
+    profiles: ["apps"]
+    build: { context: ., args: { APP: wallet-service } }
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      AUTH_SERVICE_URL: http://auth-service:3001
+    ports: ["3002:3002"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  card-service:
+    profiles: ["apps"]
+    build: { context: ., args: { APP: card-service } }
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      AUTH_SERVICE_URL: http://auth-service:3001
+      WALLET_SERVICE_URL: http://wallet-service:3002
+    ports: ["3004:3004"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  payments-service:
+    profiles: ["apps"]
+    build: { context: ., args: { APP: payments-service } }
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      AUTH_SERVICE_URL: http://auth-service:3001
+      WALLET_SERVICE_URL: http://wallet-service:3002
+    ports: ["3003:3003"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  kyc-service:
+    profiles: ["apps"]
+    build: { context: ., args: { APP: kyc-service } }
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      AUTH_SERVICE_URL: http://auth-service:3001
+      RABBITMQ_URL: amqp://billetera:billetera@rabbitmq:5672
+      KYC_STORAGE_DIR: /data/kyc
+    volumes:
+      - kycfiles:/data/kyc
+    ports: ["3005:3005"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  # POS de demostración. Dentro de Docker, el webhook del comercio debe apuntar a
+  # http://pos-demo:5000/webhooks/billetera (npm run pos:setup lo configura para localhost).
+  pos-demo:
+    profiles: ["apps"]
+    build: { context: ., args: { APP: pos-demo } }
+    env_file: .env
+    environment:
+      POS_BILLETERA_API: http://api-gateway:4000/api
+    ports: ["5000:5000"]
+    depends_on: [api-gateway]
+
+volumes:
+  pgdata:
+  kycfiles:

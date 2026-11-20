@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>POS Demo</title>
+  <link rel="stylesheet" href="/pos.css" />
+</head>
+<body>
+  <header class="bar">
+    <div class="store"><span class="logo">POS</span> <span id="store-name">Cargando…</span></div>
+    <div class="muted small">Terminal de caja · cobra con Billetera</div>
+  </header>
+
+  <p id="setup-warning" class="banner hidden">
+    Este POS todavía no tiene API key de la billetera. Ejecuta <code>npm run pos:setup</code> y reinicia.
+  </p>
+
+  <main class="layout">
+    <section class="catalog">
+      <h2>Productos</h2>
+      <div id="products" class="grid"></div>
+    </section>
+
+    <aside class="side">
+      <!-- Carrito -->
+      <div id="panel-cart" class="panel">
+        <h2>Orden actual</h2>
+        <ul id="cart" class="cart"></ul>
+        <p id="cart-empty" class="muted">Toca un producto para agregarlo.</p>
+        <div class="total"><span>Total</span><strong id="total">0.00</strong></div>
+        <button id="pay-qr" class="primary" disabled>Cobrar con QR</button>
+        <button id="pay-card" class="secondary" disabled>Cobrar con tarjeta</button>
+        <button id="clear" class="link">Vaciar</button>
+      </div>
+
+      <!-- Cobro QR -->
+      <div id="panel-qr" class="panel hidden">
+        <h2>Escanea para pagar</h2>
+        <p class="big" id="qr-amount"></p>
+        <img id="qr-img" class="qr" alt="Código QR de cobro" />
+        <p id="qr-status" class="status waiting">Esperando pago…</p>
+        <p id="qr-timer" class="muted small"></p>
+        <a id="qr-link" class="small" target="_blank" rel="noopener">Abrir página de pago en esta PC</a>
+        <button id="refresh" class="secondary">Verificar estado</button>
+        <button id="cancel-qr" class="link">Cancelar cobro</button>
+      </div>
+
+      <!-- Cobro con tarjeta -->
+      <div id="panel-card" class="panel hidden">
+        <h2>Pago con tarjeta</h2>
+        <p class="big" id="card-amount"></p>
+        <form id="form-card">
+          <label>Número de tarjeta <input name="cardNumber" inputmode="numeric" autocomplete="cc-number" placeholder="4000 0012 3456 7890" required /></label>
+          <div class="row">
+            <label>Vence (MM/AA) <input name="exp" placeholder="11/30" autocomplete="cc-exp" pattern="\d{2}/\d{2}" required /></label>
+            <label>CVV <input name="cvv" inputmode="numeric" autocomplete="cc-csc" pattern="\d{3,4}" maxlength="4" required /></label>
+          </div>
+          <button class="primary" type="submit">Cobrar</button>
+        </form>
+        <p id="card-result" class="status hidden"></p>
+        <button id="cancel-card" class="link">Volver</button>
+      </div>
+
+      <!-- Pagado -->
+      <div id="panel-paid" class="panel hidden center">
+        <div class="check">✓</div>
+        <h2>¡Pagado!</h2>
+        <p class="big" id="paid-amount"></p>
+        <p id="paid-detail"></p>
+        <div class="ticket" id="ticket"></div>
+        <button id="new-sale" class="primary">Nueva venta</button>
+      </div>
+
+      <details class="log">
+        <summary>Eventos de la orden</summary>
+        <ol id="events"></ol>
+      </details>
+    </aside>
+  </main>
+
+  <script src="/pos.js" defer></script>
+</body>
+</html>
