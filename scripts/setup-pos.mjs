@@ -13,6 +13,8 @@ const env = Object.fromEntries(
 );
 const API = process.env.POS_BILLETERA_API ?? env.POS_BILLETERA_API ?? 'http://localhost:4000/api';
 const MAILPIT = process.env.MAILPIT_URL ?? 'http://localhost:8025';
+// En producción la bandeja está protegida (MAILPIT_UI_AUTH=usuario:clave en deploy/.env).
+const MAIL_AUTH = env.MAILPIT_UI_AUTH ? { Authorization: `Basic ${Buffer.from(env.MAILPIT_UI_AUTH).toString('base64')}` } : {};
 const email = env.POS_MERCHANT_EMAIL ?? 'cafeteria.demo@billetera.local';
 const password = env.POS_MERCHANT_PASSWORD ?? 'CafeDemo2026';
 const storeName = env.POS_STORE_NAME ?? 'Cafetería Demo';
@@ -30,7 +32,7 @@ async function call(method, path, body, token) {
 
 async function codeFor(subject, after) {
   for (let i = 0; i < 30; i++) {
-    const res = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${email}"`)}`);
+    const res = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${email}"`)}`, { headers: MAIL_AUTH });
     const { messages } = await res.json();
     const msg = messages.find((m) => m.Subject.includes(subject) && new Date(m.Created) >= after);
     if (msg) return msg.Subject.slice(0, 6);
@@ -90,7 +92,7 @@ if (reg.status === 201) {
   const mailTo = customer.email;
   let code;
   for (let i = 0; i < 30 && !code; i++) {
-    const res = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${mailTo}"`)}`);
+    const res = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${mailTo}"`)}`, { headers: MAIL_AUTH });
     const { messages } = await res.json();
     code = messages.find((m) => m.Subject.includes('Verifica tu correo') && new Date(m.Created) >= since)?.Subject.slice(0, 6);
     if (!code) await new Promise((r) => setTimeout(r, 500));
