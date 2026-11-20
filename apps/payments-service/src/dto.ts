@@ -3,6 +3,7 @@ import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsEmail,
   IsIn,
   IsInt,
   IsOptional,
@@ -29,6 +30,15 @@ export class CreateMerchantDto {
   @IsOptional()
   @IsUrl({ require_tld: false, protocols: ['http', 'https'] })
   webhookUrl?: string;
+}
+
+export class AdminCreateMerchantDto extends CreateMerchantDto {
+  @ApiProperty({
+    example: 'caja@miempresa.bo',
+    description: 'Cuenta de la billetera que recibe el dinero de los cobros (debe existir y estar activa)',
+  })
+  @IsEmail()
+  ownerEmail!: string;
 }
 
 export class UpdateMerchantDto {

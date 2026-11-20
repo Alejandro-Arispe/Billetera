@@ -14,13 +14,13 @@ import {
 import { ApiBearerAuth, ApiExcludeEndpoint, ApiOperation, ApiQuery, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { DataSource } from 'typeorm';
 import { CurrentUser, JwtAuthGuard, JwtPayload, Roles, UserRole } from '@app/common';
-import { CreateIntentDto, CreateMerchantDto, PayDto, ScanDto, UpdateMerchantDto } from './dto';
+import { AdminCreateMerchantDto, CreateIntentDto, PayDto, ScanDto, UpdateMerchantDto } from './dto';
 import { IntentStatus, Merchant } from './entities';
 import { IntentsService } from './intents.service';
 import { CurrentMerchant, MerchantKeyGuard } from './merchant-key.guard';
 import { MerchantsService } from './merchants.service';
 
-/** Alta del comercio, hecha por un usuario de la billetera desde su sesión. */
+/** El dueño de la cuenta que recibe los cobros puede consultar su comercio (solo lectura). */
 @ApiTags('comercios')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -28,29 +28,10 @@ import { MerchantsService } from './merchants.service';
 export class MerchantsController {
   constructor(private readonly merchants: MerchantsService) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Registrar mi comercio (devuelve la API key una sola vez)' })
-  create(@CurrentUser() u: JwtPayload, @Body() dto: CreateMerchantDto) {
-    return this.merchants.create(u.sub, dto);
-  }
-
   @Get('me')
-  @ApiOperation({ summary: 'Datos de mi comercio y secreto de webhooks' })
+  @ApiOperation({ summary: 'Comercio cuyos cobros se acreditan en mi cuenta' })
   mine(@CurrentUser() u: JwtPayload) {
     return this.merchants.mine(u.sub);
-  }
-
-  @Patch('me')
-  @ApiOperation({ summary: 'Cambiar nombre o URL de webhook' })
-  update(@CurrentUser() u: JwtPayload, @Body() dto: UpdateMerchantDto) {
-    return this.merchants.update(u.sub, dto);
-  }
-
-  @Post('me/rotate-key')
-  @HttpCode(200)
-  @ApiOperation({ summary: 'Generar una API key nueva (invalida la anterior)' })
-  rotate(@CurrentUser() u: JwtPayload) {
-    return this.merchants.rotateKey(u.sub);
   }
 }
 
@@ -128,7 +109,29 @@ export class PayController {
 @Roles(UserRole.ADMIN)
 @Controller('payments/admin')
 export class PaymentsAdminController {
-  constructor(private readonly db: DataSource) {}
+  constructor(
+    private readonly db: DataSource,
+    private readonly merchantsSvc: MerchantsService,
+  ) {}
+
+  @Post('merchants')
+  @ApiOperation({ summary: 'Dar de alta un comercio (POS externo): devuelve API key y secreto de webhooks' })
+  createMerchant(@Body() dto: AdminCreateMerchantDto) {
+    return this.merchantsSvc.create(dto);
+  }
+
+  @Patch('merchants/:id')
+  @ApiOperation({ summary: 'Cambiar nombre o URL de webhooks de un comercio' })
+  updateMerchant(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateMerchantDto) {
+    return this.merchantsSvc.update(id, dto);
+  }
+
+  @Post('merchants/:id/rotate-key')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Generar una API key nueva (la anterior deja de funcionar)' })
+  rotateMerchantKey(@Param('id', ParseUUIDPipe) id: string) {
+    return this.merchantsSvc.rotateKey(id);
+  }
 
   @Get('merchants')
   @ApiOperation({ summary: 'Comercios con cantidad de cobros, pagados y volumen' })

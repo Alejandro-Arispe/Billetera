@@ -1,11 +1,10 @@
 // Página de pago QR de la billetera. Se abre al escanear el QR del POS con la cámara del celular.
-// Flujo: (login + código por correo) -> leer QR -> elegir cuenta -> PIN -> pagado.
+// Flujo: (login) -> leer QR -> elegir cuenta -> PIN -> pagado.
 const API = '/api';
 const SESSION_KEY = 'billetera.session';
 const $ = (id) => document.getElementById(id);
-const VIEWS = ['login', 'otp', 'scan', 'confirm', 'done'];
+const VIEWS = ['login', 'scan', 'confirm', 'done'];
 
-let challengeId = null;
 let currentQr = null;
 let intent = null;
 let timer = null;
@@ -67,20 +66,7 @@ $('form-login').addEventListener('submit', (e) => {
   e.preventDefault();
   const f = new FormData(e.target);
   run(e.target, async () => {
-    const r = await api('POST', '/auth/login', { email: f.get('email'), password: f.get('password') });
-    challengeId = r.challengeId;
-    $('otp-msg').textContent = r.message;
-    show('otp');
-    e.target.reset();
-  });
-});
-
-$('form-otp').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const code = new FormData(e.target).get('code');
-  run(e.target, async () => {
-    const tokens = await api('POST', '/auth/login/verify', { challengeId, code });
-    saveSession(tokens);
+    saveSession(await api('POST', '/auth/login', { email: f.get('email'), password: f.get('password') }));
     e.target.reset();
     await next();
   });

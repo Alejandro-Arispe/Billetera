@@ -3,14 +3,14 @@ import { CURRENCIES, Currency, Receipt, api } from '../api';
 import { Alert, CurrencyPicker, Page, money, normalizeAmount, useAction } from '../ui';
 
 const PRESETS: Record<Currency, string[]> = {
+  BOB: ['50', '100', '200', '500'],
   USD: ['20', '50', '100', '500'],
   EUR: ['20', '50', '100', '500'],
-  ARS: ['5000', '10000', '50000', '100000'],
 };
 
 /** Recarga simulada (en una billetera real sería una transferencia bancaria entrante). */
 export default function TopUp() {
-  const [currency, setCurrency] = useState<Currency>('USD');
+  const [currency, setCurrency] = useState<Currency>('BOB');
   const [amount, setAmount] = useState('');
   const [done, setDone] = useState<Receipt | null>(null);
   const action = useAction(async () => {

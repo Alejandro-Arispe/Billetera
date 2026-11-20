@@ -2,13 +2,15 @@ import { FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, logout } from '../api';
 import { useMe } from '../App';
-import { Alert, Page, Sheet, useAction } from '../ui';
+import { Alert, Page, Sheet, useAction, useLoad } from '../ui';
 
 const KYC_TEXT = { NOT_STARTED: 'Sin verificar', PENDING: 'En revisión', APPROVED: 'Verificada', REJECTED: 'Rechazada' };
 
 export default function Profile() {
   const { me, refreshMe } = useMe();
   const [pinOpen, setPinOpen] = useState(false);
+  // Solo las cuentas que reciben cobros de un POS (asignadas por el admin) ven "Mi comercio".
+  const merchant = useLoad(() => api<{ name: string }>('GET', '/payments/merchants/me').catch(() => null));
   if (!me) return null;
 
   return (
@@ -40,12 +42,14 @@ export default function Profile() {
             <span className="muted">›</span>
           </Link>
         </li>
-        <li>
-          <Link to="/comercio">
-            <span>🏪 Mi comercio (cobrar con QR)</span>
-            <span className="muted">›</span>
-          </Link>
-        </li>
+        {merchant.data && (
+          <li>
+            <Link to="/comercio">
+              <span>🏪 Cobros de {merchant.data.name}</span>
+              <span className="muted">›</span>
+            </Link>
+          </li>
+        )}
         {me.role === 'ADMIN' && (
           <li>
             <a href="/admin">

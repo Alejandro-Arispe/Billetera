@@ -2,7 +2,7 @@ import { Controller, Get, ParseEnumPipe, Query, UseGuards } from '@nestjs/common
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
-import { Currency, fromMinor, JwtAuthGuard, Roles, UserRole } from '@app/common';
+import { Currency, fromMinor, JwtAuthGuard, Roles, SUPPORTED_CURRENCIES, UserRole } from '@app/common';
 import { LedgerEntry, TransactionType, WalletTransaction } from './entities';
 import { LedgerService } from './ledger.service';
 
@@ -25,7 +25,8 @@ export class WalletAdminController {
   async stats() {
     const balances: { currency: Currency; total: string; accounts: number }[] = await this.db.query(
       `SELECT currency, SUM(balance_minor)::text AS total, COUNT(*) FILTER (WHERE balance_minor > 0)::int AS accounts
-         FROM accounts WHERE user_id IS NOT NULL GROUP BY currency ORDER BY currency`,
+         FROM accounts WHERE user_id IS NOT NULL AND currency = ANY($1) GROUP BY currency ORDER BY currency`,
+      [[...SUPPORTED_CURRENCIES]],
     );
     const byType: { type: string; total: number; last24h: number }[] = await this.db.query(
       `SELECT type, COUNT(*)::int AS total,

@@ -22,7 +22,7 @@ export default function Exchange() {
   const accounts = useLoad(() => api<Account[]>('GET', '/wallet/accounts'));
   const rates = useLoad(() => api<Rates>('GET', '/wallet/fx/rates'));
   const [from, setFrom] = useState<Currency>('USD');
-  const [to, setTo] = useState<Currency>('ARS');
+  const [to, setTo] = useState<Currency>('BOB');
   const [amount, setAmount] = useState('');
   const [quote, setQuote] = useState<Quote | null>(null);
   const [left, setLeft] = useState(0);

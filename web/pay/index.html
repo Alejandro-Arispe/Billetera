@@ -22,23 +22,11 @@
       <form id="form-login">
         <label>Correo <input name="email" type="email" autocomplete="email" required /></label>
         <label>Contraseña <input name="password" type="password" autocomplete="current-password" required /></label>
-        <button class="primary" type="submit">Continuar</button>
+        <button class="primary" type="submit">Ingresar</button>
       </form>
     </section>
 
-    <!-- 2. Código por correo -->
-    <section id="view-otp" class="card hidden">
-      <h1>Revisa tu correo</h1>
-      <p id="otp-msg" class="muted"></p>
-      <form id="form-otp">
-        <label>Código de 6 dígitos
-          <input name="code" inputmode="numeric" pattern="\d{6}" maxlength="6" autocomplete="one-time-code" required class="code" />
-        </label>
-        <button class="primary" type="submit">Verificar</button>
-      </form>
-    </section>
-
-    <!-- 3. Escanear (si se abrió /pay sin un QR) -->
+    <!-- 2. Escanear (si se abrió /pay sin un QR) -->
     <section id="view-scan" class="card hidden">
       <h1>Escanea el QR del comercio</h1>
       <div id="reader" class="reader"></div>
@@ -49,7 +37,7 @@
       </form>
     </section>
 
-    <!-- 4. Confirmar pago -->
+    <!-- 3. Confirmar pago -->
     <section id="view-confirm" class="card hidden">
       <p class="muted">Pagar a</p>
       <h1 id="c-merchant"></h1>
@@ -69,7 +57,7 @@
       </form>
     </section>
 
-    <!-- 5. Resultado -->
+    <!-- 4. Resultado -->
     <section id="view-done" class="card hidden center">
       <div class="check">✓</div>
       <h1>¡Pago realizado!</h1>

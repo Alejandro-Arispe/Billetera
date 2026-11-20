@@ -4,9 +4,9 @@ import { Session, api, setSession } from '../api';
 import { useMe } from '../App';
 import { Alert, useAction } from '../ui';
 
-type Step = 'login' | 'login-code' | 'register' | 'register-code';
+type Step = 'login' | 'register' | 'register-code';
 
-/** Ingreso en dos pasos (contraseña + código por correo) y registro con verificación de correo. */
+/** Ingreso con correo y contraseña. Al crear la cuenta se verifica el correo con un código. */
 export default function Login() {
   const { me } = useMe();
   const loc = useLocation();
@@ -15,7 +15,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [code, setCode] = useState('');
-  const [challengeId, setChallengeId] = useState('');
   const [info, setInfo] = useState('');
 
   const action = useAction(async (fn: () => Promise<void>) => fn());
@@ -25,13 +24,7 @@ export default function Login() {
     e.preventDefault();
     void action.run(async () => {
       if (step === 'login') {
-        const r = await api<{ challengeId: string; message: string }>('POST', '/auth/login', { email, password });
-        setChallengeId(r.challengeId);
-        setInfo(r.message);
-        setCode('');
-        setStep('login-code');
-      } else if (step === 'login-code') {
-        setSession(await api<Session>('POST', '/auth/login/verify', { challengeId, code }));
+        setSession(await api<Session>('POST', '/auth/login', { email, password }));
       } else if (step === 'register') {
         const r = await api<{ message: string }>('POST', '/auth/register', { email, password, fullName });
         setInfo(r.message);
@@ -45,23 +38,17 @@ export default function Login() {
 
   const resend = () =>
     void action.run(async () => {
-      if (step === 'register-code') {
-        const r = await api<{ message: string }>('POST', '/auth/resend-verification', { email });
-        setInfo(r.message);
-      } else {
-        const r = await api<{ challengeId: string; message: string }>('POST', '/auth/login', { email, password });
-        setChallengeId(r.challengeId);
-        setInfo(r.message);
-      }
+      const r = await api<{ message: string }>('POST', '/auth/resend-verification', { email });
+      setInfo(r.message);
     });
 
-  const isCode = step.endsWith('code');
+  const isCode = step === 'register-code';
   return (
     <div className="auth">
       <div className="auth-brand">
         <img src="/icons/icon-192.png" alt="" width={56} height={56} />
         <h1>Billetera</h1>
-        <p className="muted">Tu dinero en dólares, euros y pesos. Paga con QR o con tu tarjeta virtual.</p>
+        <p className="muted">Tu dinero en bolivianos, dólares y euros. Paga con QR o con tu tarjeta virtual.</p>
       </div>
 
       <form className="card" onSubmit={submit}>
@@ -115,7 +102,7 @@ export default function Login() {
         )}
 
         <button className="btn primary" disabled={action.busy || (isCode && code.length !== 6)}>
-          {action.busy ? 'Un momento…' : isCode ? 'Verificar' : step === 'login' ? 'Continuar' : 'Crear cuenta'}
+          {action.busy ? 'Un momento…' : isCode ? 'Verificar' : step === 'login' ? 'Ingresar' : 'Crear cuenta'}
         </button>
 
         {isCode ? (
@@ -123,7 +110,7 @@ export default function Login() {
             <button type="button" className="link" onClick={resend} disabled={action.busy}>
               Reenviar código
             </button>
-            <button type="button" className="link" onClick={() => setStep(step === 'login-code' ? 'login' : 'register')}>
+            <button type="button" className="link" onClick={() => setStep('register')}>
               Cambiar datos
             </button>
           </div>

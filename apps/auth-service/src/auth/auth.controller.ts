@@ -6,7 +6,6 @@ import { CurrentUser, JwtAuthGuard, JwtPayload } from '@app/common';
 import { AuthService } from './auth.service';
 import {
   LoginDto,
-  LoginVerifyDto,
   RefreshDto,
   RegisterDto,
   ResendOtpDto,
@@ -49,17 +48,10 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Login paso 1: contraseña -> envía código OTP al correo' })
+  @ApiOperation({ summary: 'Login con correo y contraseña -> accessToken + refreshToken' })
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  login(@Body() dto: LoginDto) {
-    return this.auth.login(dto);
-  }
-
-  @Post('login/verify')
-  @HttpCode(200)
-  @ApiOperation({ summary: 'Login paso 2: valida el código OTP y entrega los tokens' })
-  verifyLogin(@Body() dto: LoginVerifyDto, @Req() req: Request) {
-    return this.auth.verifyLogin(dto.challengeId, dto.code, clientOf(req));
+  login(@Body() dto: LoginDto, @Req() req: Request) {
+    return this.auth.login(dto, clientOf(req));
   }
 
   @Post('refresh')

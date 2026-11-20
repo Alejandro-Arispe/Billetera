@@ -6,10 +6,11 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  app.set('trust proxy', 1); // detrás del API gateway
+  // Saltos de proxy delante del servicio: 1 = API gateway; 2 = HTTPS (Caddy) + gateway en producción.
+  app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? 1));
   setupHttpApp(app, {
     title: 'Billetera · Auth Service',
-    description: 'Registro, verificación de correo con OTP, login con 2FA por correo, sesiones y PIN de pagos',
+    description: 'Registro, verificación de correo con OTP, login, sesiones y PIN de pagos',
   });
   const port = Number(process.env.AUTH_PORT ?? 3001);
   await app.listen(port);

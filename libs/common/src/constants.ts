@@ -7,7 +7,7 @@ export const QUEUES = {
 export const NOTIFICATION_CLIENT = 'NOTIFICATION_CLIENT';
 
 /** Monedas soportadas por la billetera (ISO 4217). Se amplía en la etapa 2. */
-export const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'ARS'] as const;
+export const SUPPORTED_CURRENCIES = ['BOB', 'USD', 'EUR'] as const;
 export type Currency = (typeof SUPPORTED_CURRENCIES)[number];
 
 export enum UserRole {

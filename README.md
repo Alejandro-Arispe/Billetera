@@ -11,7 +11,7 @@ tipo Takenos y pagos por QR que cualquier proyecto POS puede integrar
 | api-gateway | 4000 | ✅ Etapa 1: enruta `/api/<servicio>/...` |
 | auth-service | 3001 | ✅ Etapa 1: registro, OTP por correo, 2FA, sesiones, PIN |
 | notification-service | 3006 | ✅ Etapa 1: correos (consume RabbitMQ) |
-| wallet-service | 3002 | ✅ Etapa 2: cuentas USD/EUR/ARS, ledger, recargas, P2P, cambio de divisas |
+| wallet-service | 3002 | ✅ Etapa 2: cuentas BOB/USD/EUR, ledger, recargas, P2P, cambio de divisas |
 | payments-service | 3003 | ✅ Etapa 3: comercios con API key, cobros QR firmados, webhooks |
 | card-service | 3004 | ✅ Etapa 2: tarjeta virtual tipo Takenos y autorización de compras |
 | kyc-service | 3005 | ✅ Etapa 4: verificación de identidad (documento + selfie) y revisión manual |
@@ -46,10 +46,9 @@ npm run smoke               # pruebas de punta a punta (auth, wallet, tarjeta, c
 
 1. `POST /api/auth/register` `{email, password, fullName}` → envía un código al correo
 2. `POST /api/auth/verify-email` `{email, code}` → activa la cuenta y devuelve tokens
-3. `POST /api/auth/login` `{email, password}` → envía un OTP y devuelve `challengeId`
-4. `POST /api/auth/login/verify` `{challengeId, code}` → `accessToken` (15 min) + `refreshToken` (7 días)
-5. `POST /api/auth/refresh` rota el refresh token. Si se reutiliza uno viejo, se cierran todas las sesiones.
-6. `POST /api/auth/pin` configura el PIN de 4-6 dígitos que confirmará los pagos.
+3. `POST /api/auth/login` `{email, password}` → `accessToken` (15 min) + `refreshToken` (7 días). El código por correo solo se pide al crear la cuenta.
+4. `POST /api/auth/refresh` rota el refresh token. Si se reutiliza uno viejo, se cierran todas las sesiones.
+5. `POST /api/auth/pin` configura el PIN de 4-6 dígitos que confirmará los pagos.
 
 Seguridad incluida: OTP guardado como HMAC, vence a los 10 min, 5 intentos, un solo
 uso y 60 s entre reenvíos. Bloqueo de 15 min tras 5 contraseñas erradas. Rate limiting.
@@ -67,7 +66,7 @@ Todos los montos van como **texto con 2 decimales** (`"25.50"`); internamente se
 
 | Endpoint | Qué hace |
 |---|---|
-| `GET /api/wallet/accounts` | Saldos USD, EUR, ARS |
+| `GET /api/wallet/accounts` | Saldos BOB, USD, EUR |
 | `POST /api/wallet/topups` `{currency, amount}` | Recarga simulada (máx. 5000) |
 | `POST /api/wallet/transfers` `{toEmail, currency, amount, description?, pin}` | Envío a otro usuario. Header opcional `Idempotency-Key` |
 | `GET /api/wallet/transactions?currency=&page=` | Historial |
@@ -88,7 +87,7 @@ bloquean con `SELECT … FOR UPDATE`, así dos pagos simultáneos no pueden gast
 4. `POST /api/cards/:id/freeze` · `/unfreeze` · `PATCH /api/cards/:id/limit` · `POST /api/cards/:id/cancel`
 5. `GET /api/cards/:id/transactions` → compras aprobadas y rechazadas.
 
-La tarjeta se paga con el saldo USD. Si el comercio cobra en EUR o ARS, se convierte al vuelo.
+La tarjeta se paga con el saldo USD. Si el comercio cobra en BOB o EUR, se convierte al vuelo.
 
 **Cobrar con la tarjeta (lado del comercio):** `POST /api/cards/authorizations` con el header
 `x-api-key: demo-pos-key` y los datos que rellenó el cliente
@@ -110,8 +109,8 @@ POS / tu proyecto            payments-service                  Cliente (celular)
  │   reference, items}         │                                     │
  │ ◄── {id, qr.image, qr.payload, expiresAt}                         │
  │ muestra el QR               │      escanea con la cámara ───────► │ abre {PAY_BASE_URL}/pay?i=…&s=…
- │                             │ ◄── POST /api/payments/qr/scan       │ (login + código por correo)
- │ ◄── webhook payment_intent.scanned                                │ elige cuenta (USD/EUR/ARS)
+ │                             │ ◄── POST /api/payments/qr/scan       │ (login)              
+ │ ◄── webhook payment_intent.scanned                                │ elige cuenta (BOB/USD/EUR)
  │                             │ ◄── POST /api/payments/qr/:id/pay {pin}
  │                             │  cobra en wallet (atómico, idempotente)
  │                             │  y acredita la billetera del comercio
@@ -119,10 +118,11 @@ POS / tu proyecto            payments-service                  Cliente (celular)
  │ marca la orden PAGADA, imprime ticket y sigue
 ```
 
-**Integrarlo en otro proyecto (3 pasos):**
+**Integrarlo en otro proyecto (3 pasos).** Guía completa para el POS de facturación (Spring Boot + Angular): [docs/INTEGRACION_POS.md](docs/INTEGRACION_POS.md)
 
-1. Un usuario de la billetera registra su comercio: `POST /api/payments/merchants` `{name, webhookUrl}`
-   → recibe la `apiKey` (`sk_test_…`, se muestra una vez) y el `webhookSecret`.
+1. El **administrador** da de alta el comercio (el POS externo) en `/admin → Comercios`
+   (`POST /api/payments/admin/merchants` `{name, ownerEmail, webhookUrl}`). `ownerEmail` es la cuenta de
+   la billetera que recibe el dinero. Devuelve la `apiKey` (`sk_test_…`, se muestra una vez) y el `webhookSecret`.
 2. Al cobrar: `POST /api/payments/intents` con `x-api-key` → mostrar `qr.image` (PNG en data URL).
 3. Recibir el webhook en `webhookUrl` y verificar la firma:
    `Billetera-Signature: t=<unix>,v1=HMAC_SHA256(webhookSecret, "<t>.<cuerpo>")`.
@@ -180,7 +180,7 @@ Privacidad: el número de documento y las fotos se guardan **cifrados (AES-256-G
 | Pantalla | Qué hace |
 |---|---|
 | Ingresar / Crear cuenta | Contraseña + código por correo; registro con verificación de correo |
-| Inicio | Saldos USD/EUR/ARS, accesos rápidos, últimos movimientos y avisos (verificar identidad, crear PIN) |
+| Inicio | Saldos BOB/USD/EUR, accesos rápidos, últimos movimientos y avisos (verificar identidad, crear PIN) |
 | Actividad | Historial filtrable por moneda y comprobante de cada operación |
 | Recargar · Enviar · Cambiar | Recarga simulada, envío por correo con PIN (idempotente), cambio con cotización de 30 s |
 | Pagar (botón central) | Escanea el QR con la cámara (o pega el texto), elige la cuenta y paga con PIN |
@@ -206,6 +206,27 @@ abra rápido, pero **nunca** guarda en caché respuestas de la API (saldos y pag
 - **Verificaciones:** revisión de identidad (KYC).
 
 **SDK para comercios:** ver [packages/sdk/README.md](packages/sdk/README.md). El POS demo lo usa.
+
+## Despliegue en una máquina virtual (Azure)
+
+Todo corre en una sola VM con Docker Compose ([deploy/](deploy/)). Caddy pone HTTPS automático
+(Let's Encrypt), así la cámara y la instalación de la app funcionan en el celular.
+
+| URL | Qué es |
+|---|---|
+| `https://DOMINIO` | App de la billetera, `/pay`, `/kyc`, `/admin` y la API (`/api/...`) |
+| `https://DOMINIO/correo/` | Bandeja de Mailpit (códigos de registro) si no configuraste SMTP real |
+| `https://DOMINIO:8443` | POS de demostración |
+
+Primera vez, en una VM Ubuntu con los puertos 80, 443 y 8443 abiertos:
+
+```bash
+git clone <este repo> billetera && cd billetera
+bash deploy/setup-vm.sh <dominio>      # instala Docker, genera deploy/.env con secretos y levanta todo
+```
+
+Actualizar: `git pull && cd deploy && sudo docker compose up -d --build`.
+Para enviar los códigos de registro a correos reales, completa `SMTP_*` en `deploy/.env`.
 
 ## Hoja de ruta
 

@@ -1,7 +1,7 @@
 // Prueba de punta a punta de la Etapa 5: panel de administración, SDK de comercios y app PWA.
 // Requiere `npm run infra:up`, `npm run dev`, `npm run pos:setup` y `npm run build` (app y SDK compilados).
 import { createRequire } from 'node:module';
-import { admin, call, env, mailCode, sleep } from './lib.mjs';
+import { admin, call, env, loginUser, mailCode, sleep } from './lib.mjs';
 
 const require = createRequire(import.meta.url);
 const { Billetera, BilleteraError, signWebhook, verifyWebhook } = require('../packages/sdk/dist/index.js');
@@ -118,25 +118,9 @@ try {
 
 // El cliente demo paga mientras el SDK espera el resultado.
 const waiting = sdk.payments.waitForStatus(cobro.id, ['PAID'], { intervalMs: 500, timeoutMs: 30_000 });
-const customer = await call('POST', '/auth/login', { body: { email: env.DEMO_CUSTOMER_EMAIL, password: env.DEMO_CUSTOMER_PASSWORD } });
-let customerToken;
-if (customer.status === 200) {
-  const since = new Date(Date.now() - 2000);
-  const v = await call('POST', '/auth/login/verify', {
-    body: { challengeId: customer.data.challengeId, code: await mailCode(env.DEMO_CUSTOMER_EMAIL, 'Tu código de acceso', since) },
-  });
-  customerToken = v.data.accessToken;
-} else {
-  // El cliente demo pidió código hace menos de 60 s: usamos a Elena, que tiene saldo.
-  const l = await call('POST', '/auth/login', { body: { email: elena.email, password: elena.password } });
-  const since = new Date(Date.now() - 2000);
-  const v = await call('POST', '/auth/login/verify', {
-    body: { challengeId: l.data.challengeId, code: await mailCode(elena.email, 'Tu código de acceso', since) },
-  });
-  customerToken = v.data.accessToken;
-}
+const customerToken = await loginUser(env.DEMO_CUSTOMER_EMAIL, env.DEMO_CUSTOMER_PASSWORD);
 const scan = await call('POST', '/payments/qr/scan', { token: customerToken, body: { qr: cobro.qr.payload } });
-const pin = customer.status === 200 ? env.DEMO_CUSTOMER_PIN : '3691';
+const pin = env.DEMO_CUSTOMER_PIN;
 await call('POST', `/payments/qr/${scan.data.intentId}/pay`, { token: customerToken, body: { pin } });
 const final = await waiting;
 expect(final.status === 'PAID' && final.payer?.name, `payments.waitForStatus → PAID por ${final.payer?.name}`);

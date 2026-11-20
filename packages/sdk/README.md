@@ -20,7 +20,7 @@ const billetera = new Billetera({
 
 const cobro = await billetera.payments.create({
   amount: '7.00',                 // siempre texto con 2 decimales
-  currency: 'USD',                // USD | EUR | ARS
+  currency: 'USD',                // BOB | USD | EUR
   reference: 'ORD-1001',          // id del pedido en tu sistema (reintentos = mismo cobro)
   description: 'Mesa 4',
   items: [

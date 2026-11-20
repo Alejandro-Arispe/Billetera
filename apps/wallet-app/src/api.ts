@@ -2,8 +2,8 @@
 // La sesión se guarda en localStorage para que la app instalada no pida login cada vez;
 // el access token dura 15 min y se renueva solo con el refresh token (rotación en cada uso).
 
-export type Currency = 'USD' | 'EUR' | 'ARS';
-export const CURRENCIES: Currency[] = ['USD', 'EUR', 'ARS'];
+export type Currency = 'BOB' | 'USD' | 'EUR';
+export const CURRENCIES: Currency[] = ['BOB', 'USD', 'EUR'];
 
 export interface Session {
   accessToken: string;

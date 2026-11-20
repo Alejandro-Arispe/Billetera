@@ -3,14 +3,14 @@ import type { Currency } from './api';
 
 // ------------------------------------------------------------------ formato
 
-const SYMBOL: Record<string, string> = { USD: 'US$', EUR: '€', ARS: '$' };
-const NAME: Record<string, string> = { USD: 'Dólares', EUR: 'Euros', ARS: 'Pesos argentinos' };
+const SYMBOL: Record<string, string> = { BOB: 'Bs', USD: 'US$', EUR: '€' };
+const NAME: Record<string, string> = { BOB: 'Bolivianos', USD: 'Dólares', EUR: 'Euros' };
 
 export const currencyName = (c: string) => NAME[c] ?? c;
 
 export function money(amount: string | number, currency: Currency | string) {
   const n = Number(amount);
-  const txt = Math.abs(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const txt = Math.abs(n).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return `${n < 0 ? '-' : ''}${SYMBOL[currency] ?? currency} ${txt}`;
 }
 
@@ -19,8 +19,8 @@ export function when(iso: string) {
   const today = new Date();
   const sameDay = d.toDateString() === today.toDateString();
   return sameDay
-    ? `Hoy ${d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`
-    : d.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    ? `Hoy ${d.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })}`
+    : d.toLocaleDateString('es-BO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
 /** Acepta "12,50" o "12.50" y devuelve "12.50" (lo que espera la API). */

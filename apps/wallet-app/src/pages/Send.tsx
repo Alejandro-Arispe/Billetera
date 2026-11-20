@@ -9,7 +9,7 @@ export default function Send() {
   const { me } = useMe();
   const askPin = usePin();
   const accounts = useLoad(() => api<Account[]>('GET', '/wallet/accounts'));
-  const [currency, setCurrency] = useState<Currency>('USD');
+  const [currency, setCurrency] = useState<Currency>('BOB');
   const [toEmail, setToEmail] = useState('');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');

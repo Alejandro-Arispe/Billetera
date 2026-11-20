@@ -153,7 +153,7 @@ small { display: block; margin-top: 4px; }
   color: #fff; background: linear-gradient(135deg, #4f46e5, #7c3aed);
 }
 .balance.EUR { background: linear-gradient(135deg, #0f766e, #0e7490); }
-.balance.ARS { background: linear-gradient(135deg, #0369a1, #2563eb); }
+.balance.BOB { background: linear-gradient(135deg, #0369a1, #2563eb); }
 .balance .muted { color: rgb(255 255 255 / 80%); }
 .balance strong { font-size: 1.75rem; font-variant-numeric: tabular-nums; }
 .balance.skeleton { background: var(--line); }

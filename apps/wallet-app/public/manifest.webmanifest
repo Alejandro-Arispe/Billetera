@@ -1,7 +1,7 @@
 {
   "name": "Billetera",
   "short_name": "Billetera",
-  "description": "Billetera digital simulada: saldos en USD, EUR y ARS, envíos, tarjeta virtual y pagos con QR.",
+  "description": "Billetera digital simulada: saldos en bolivianos, dólares y euros, envíos, tarjeta virtual y pagos con QR.",
   "lang": "es",
   "start_url": "/",
   "scope": "/",

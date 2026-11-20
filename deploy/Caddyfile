@@ -1,0 +1,15 @@
+{$DOMAIN} {
+	encode gzip
+	# Bandeja de correos de prueba (Mailpit), protegida con usuario y clave
+	handle /correo* {
+		reverse_proxy mailpit:8025
+	}
+	handle {
+		reverse_proxy api-gateway:4000
+	}
+}
+
+# POS de demostración
+{$DOMAIN}:8443 {
+	reverse_proxy pos-demo:5000
+}

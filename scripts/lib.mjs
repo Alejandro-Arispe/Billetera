@@ -57,27 +57,21 @@ export async function lastMailSubject(to, contains, since) {
   return null;
 }
 
-/** Login completo (contraseña + código por correo). */
-export async function loginWithOtp(email, password) {
-  let since = new Date(Date.now() - 1000);
+/** Login con correo y contraseña; devuelve el accessToken. */
+export async function loginUser(email, password) {
   let r = await call('POST', '/auth/login', { body: { email, password } });
-  // Entre códigos de acceso hay que esperar 60 s (protección anti-spam): reintentamos.
   for (let i = 0; r.status === 429 && i < 8; i++) {
-    console.log('  … esperando 10 s para pedir otro código de acceso');
+    console.log('  … límite de ingresos por minuto alcanzado, esperando 10 s');
     await sleep(10_000);
-    since = new Date(Date.now() - 1000);
     r = await call('POST', '/auth/login', { body: { email, password } });
   }
   if (r.status !== 200) throw new Error(`Login de ${email} falló: ${JSON.stringify(r.data)}`);
-  const v = await call('POST', '/auth/login/verify', {
-    body: { challengeId: r.data.challengeId, code: await mailCode(email, 'Tu código de acceso', since) },
-  });
-  return v.data.accessToken;
+  return r.data.accessToken;
 }
 
 let adminToken = null;
 export async function admin() {
-  adminToken ??= await loginWithOtp(env.ADMIN_EMAIL, env.ADMIN_PASSWORD);
+  adminToken ??= await loginUser(env.ADMIN_EMAIL, env.ADMIN_PASSWORD);
   return adminToken;
 }
 

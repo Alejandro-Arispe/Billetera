@@ -120,8 +120,8 @@ export class AuthService implements OnModuleInit {
     return { message: 'Si el correo está pendiente de verificación, te enviamos un código nuevo' };
   }
 
-  /** Paso 1 del login: valida la contraseña y envía un código OTP (2FA por correo). */
-  async login(dto: LoginDto) {
+  /** Login con correo y contraseña. El correo ya se verificó con código al crear la cuenta. */
+  async login(dto: LoginDto, client: ClientInfo): Promise<TokenPair> {
     const user = await this.users.findOne({ where: { email: dto.email } });
     const invalid = new UnauthorizedException('Correo o contraseña incorrectos');
     if (!user) {
@@ -156,19 +156,6 @@ export class AuthService implements OnModuleInit {
     user.lockedUntil = null;
     await this.users.save(user);
 
-    const challenge = await this.otp.issue(user, 'LOGIN');
-    return {
-      challengeId: challenge.id,
-      message: `Te enviamos un código de acceso a ${maskEmail(user.email)}`,
-      expiresAt: challenge.expiresAt,
-    };
-  }
-
-  /** Paso 2 del login: valida el OTP y entrega los tokens. */
-  async verifyLogin(challengeId: string, code: string, client: ClientInfo): Promise<TokenPair> {
-    const otp = await this.otp.verifyById(challengeId, 'LOGIN', code);
-    const user = await this.users.findOneOrFail({ where: { id: otp.userId } });
-    if (user.status !== UserStatus.ACTIVE) throw new ForbiddenException('Cuenta no disponible');
     return this.tokens.issue(user, client);
   }
 
@@ -273,8 +260,3 @@ const toInternal = (u: User): InternalUser => ({
   kycStatus: u.kycStatus,
   hasPin: !!u.pinHash,
 });
-
-function maskEmail(email: string): string {
-  const [name, domain] = email.split('@');
-  return `${name.slice(0, 2)}${'*'.repeat(Math.max(name.length - 2, 1))}@${domain}`;
-}

@@ -49,3 +49,7 @@ button.small { width: auto; margin: 0; padding: 6px 12px; font-size: .82rem; bor
 .leg .pos { color: var(--ok); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .alert.ok-box { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
 .mt { margin-top: 18px; }
+.merchant-form { display: grid; gap: 4px; max-width: 520px; }
+.row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.highlight { border: 2px solid var(--brand); }
+.break { word-break: break-all; }

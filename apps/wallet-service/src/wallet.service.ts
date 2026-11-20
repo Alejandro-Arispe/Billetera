@@ -49,6 +49,7 @@ export class WalletService {
     const list = await this.accounts.find({ where: { userId } });
     const order = (c: Currency) => SUPPORTED_CURRENCIES.indexOf(c);
     return list
+      .filter((a) => order(a.currency) >= 0)
       .sort((a, b) => order(a.currency) - order(b.currency))
       .map((a) => ({ id: a.id, currency: a.currency, balance: fromMinor(a.balanceMinor, a.currency) }));
   }

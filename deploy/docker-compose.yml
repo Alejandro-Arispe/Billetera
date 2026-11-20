@@ -1,0 +1,145 @@
+name: billetera
+
+# Producción en una sola máquina virtual: todo detrás de Caddy (HTTPS automático con Let's Encrypt).
+#   https://DOMINIO          app de la billetera, /pay, /kyc, /admin y la API (/api/...)
+#   https://DOMINIO/correo/  bandeja de Mailpit (si no configuraste un SMTP real), con usuario y clave
+#   https://DOMINIO:8443     POS de demostración
+# Uso: deploy/setup-vm.sh la primera vez; luego `docker compose up -d --build` en esta carpeta.
+
+x-app: &app
+  image: billetera:latest
+  build: { context: .., dockerfile: Dockerfile }
+  restart: unless-stopped
+  env_file: .env
+  logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+
+x-db-env: &db-env
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  AUTH_SERVICE_URL: http://auth-service:3001
+  WALLET_SERVICE_URL: http://wallet-service:3002
+  PAYMENTS_SERVICE_URL: http://payments-service:3003
+  CARD_SERVICE_URL: http://card-service:3004
+  KYC_SERVICE_URL: http://kyc-service:3005
+  RABBITMQ_URL: amqp://billetera:${RABBITMQ_PASSWORD}@rabbitmq:5672
+
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "8443:8443"]
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api-gateway]
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 5s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:3.13-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: billetera
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    volumes: [rabbitdata:/var/lib/rabbitmq]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:v1.21
+    restart: unless-stopped
+    environment:
+      MP_WEBROOT: correo
+      MP_UI_AUTH: ${MAILPIT_UI_AUTH}
+      MP_MAX_MESSAGES: 2000
+
+  api-gateway:
+    <<: *app
+    command: ["node", "dist/apps/api-gateway/main.js"]
+    environment: *db-env
+    depends_on: [auth-service, wallet-service, card-service, payments-service, kyc-service]
+
+  auth-service:
+    <<: *app
+    command: ["node", "dist/apps/auth-service/main.js"]
+    environment:
+      <<: *db-env
+      TRUST_PROXY_HOPS: "2"
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  notification-service:
+    <<: *app
+    command: ["node", "dist/apps/notification-service/main.js"]
+    environment: *db-env
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+
+  wallet-service:
+    <<: *app
+    command: ["node", "dist/apps/wallet-service/main.js"]
+    environment: *db-env
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  card-service:
+    <<: *app
+    command: ["node", "dist/apps/card-service/main.js"]
+    environment: *db-env
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  payments-service:
+    <<: *app
+    command: ["node", "dist/apps/payments-service/main.js"]
+    environment: *db-env
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  kyc-service:
+    <<: *app
+    command: ["node", "dist/apps/kyc-service/main.js"]
+    environment:
+      <<: *db-env
+      KYC_STORAGE_DIR: /data/kyc
+    volumes: [kycfiles:/data/kyc]
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  pos-demo:
+    <<: *app
+    command: ["node", "dist/apps/pos-demo/main.js"]
+    environment:
+      POS_BILLETERA_API: http://api-gateway:4000/api
+    depends_on: [api-gateway]
+
+volumes:
+  pgdata:
+  rabbitdata:
+  kycfiles:
+  caddy_data:
+  caddy_config:

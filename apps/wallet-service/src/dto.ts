@@ -60,7 +60,7 @@ export class FxQuoteDto {
   @IsIn(SUPPORTED_CURRENCIES)
   from!: Currency;
 
-  @ApiProperty({ enum: SUPPORTED_CURRENCIES, example: 'ARS' })
+  @ApiProperty({ enum: SUPPORTED_CURRENCIES, example: 'BOB' })
   @Transform(upper)
   @IsIn(SUPPORTED_CURRENCIES)
   to!: Currency;

@@ -65,16 +65,8 @@ r = await call('POST', '/auth/login', { email, password: 'Incorrecta1' });
 expect(r.status === 401, 'rechaza contraseña incorrecta', r.data);
 
 r = await call('POST', '/auth/login', { email, password });
-expect(r.status === 200 && r.data.challengeId, 'login paso 1 envía OTP', r.data);
-const { challengeId } = r.data;
-
-const loginCode = await latestCode(email, 'Tu código de acceso');
-r = await call('POST', '/auth/login/verify', { challengeId, code: loginCode });
-expect(r.status === 200 && r.data.accessToken, 'login paso 2 entrega tokens', r.data);
+expect(r.status === 200 && r.data.accessToken && r.data.refreshToken, 'login con contraseña entrega tokens (sin código)', r.data);
 const { accessToken, refreshToken } = r.data;
-
-r = await call('POST', '/auth/login/verify', { challengeId, code: loginCode });
-expect(r.status === 400, 'el OTP no se puede reutilizar', r.data);
 
 r = await call('GET', '/auth/me', undefined, accessToken);
 expect(r.status === 200 && r.data.email === email, '/me devuelve el usuario', r.data);

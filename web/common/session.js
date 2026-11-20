@@ -1,5 +1,5 @@
 // Sesión compartida por las páginas web de la billetera (/kyc, /admin).
-// Login en dos pasos: contraseña -> código enviado por correo.
+// Login con correo y contraseña (el código por correo solo se pide al crear la cuenta).
 const API = '/api';
 const KEY = 'billetera.session';
 
@@ -58,54 +58,37 @@ export async function api(method, path, body, { raw = false } = {}) {
   return data;
 }
 
-/** Dibuja el login (correo/contraseña y luego código) dentro de `root` y resuelve al entrar. */
+/** Dibuja el login (correo y contraseña) dentro de `root` y resuelve al entrar. */
 export function login(root, title = 'Inicia sesión') {
   return new Promise((resolve) => {
     root.innerHTML = `
       <section class="card">
         <h1></h1>
         <p class="alert hidden" role="alert"></p>
-        <form data-step="password">
+        <form>
           <label>Correo <input name="email" type="email" autocomplete="email" required /></label>
           <label>Contraseña <input name="password" type="password" autocomplete="current-password" required /></label>
-          <button class="primary" type="submit">Continuar</button>
-        </form>
-        <form data-step="code" class="hidden">
-          <p class="muted" data-msg></p>
-          <label>Código de 6 dígitos
-            <input name="code" inputmode="numeric" pattern="\\d{6}" maxlength="6" autocomplete="one-time-code" required class="code" />
-          </label>
-          <button class="primary" type="submit">Verificar</button>
+          <button class="primary" type="submit">Ingresar</button>
         </form>
       </section>`;
     root.querySelector('h1').textContent = title;
     const alert = root.querySelector('.alert');
-    const [pwForm, codeForm] = root.querySelectorAll('form');
-    let challengeId = null;
-
-    const guard = (form, fn) => async (e) => {
+    const form = root.querySelector('form');
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       alert.classList.add('hidden');
       form.querySelector('button').disabled = true;
-      try { await fn(new FormData(form)); } catch (err) {
+      const f = new FormData(form);
+      try {
+        saveSession(await api('POST', '/auth/login', { email: f.get('email'), password: f.get('password') }));
+        resolve(claims());
+      } catch (err) {
         alert.textContent = err.message;
         alert.classList.remove('hidden');
-      } finally { form.querySelector('button').disabled = false; }
-    };
-
-    pwForm.addEventListener('submit', guard(pwForm, async (f) => {
-      const r = await api('POST', '/auth/login', { email: f.get('email'), password: f.get('password') });
-      challengeId = r.challengeId;
-      codeForm.querySelector('[data-msg]').textContent = r.message;
-      pwForm.classList.add('hidden');
-      codeForm.classList.remove('hidden');
-      codeForm.querySelector('input').focus();
-    }));
-
-    codeForm.addEventListener('submit', guard(codeForm, async (f) => {
-      saveSession(await api('POST', '/auth/login/verify', { challengeId, code: f.get('code') }));
-      resolve(claims());
-    }));
+      } finally {
+        form.querySelector('button').disabled = false;
+      }
+    });
   });
 }
 

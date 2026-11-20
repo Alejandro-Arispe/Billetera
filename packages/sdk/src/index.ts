@@ -11,7 +11,7 @@
  */
 import { createHmac, timingSafeEqual } from 'crypto';
 
-export type Currency = 'USD' | 'EUR' | 'ARS';
+export type Currency = 'BOB' | 'USD' | 'EUR';
 export type PaymentStatus = 'CREATED' | 'SCANNED' | 'PROCESSING' | 'PAID' | 'EXPIRED' | 'CANCELLED';
 export type WebhookEventType =
   | 'payment_intent.scanned'

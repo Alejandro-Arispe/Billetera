@@ -5,3 +5,4 @@ dist/
 coverage/
 storage/
 packages/sdk/dist/
+deploy/.env

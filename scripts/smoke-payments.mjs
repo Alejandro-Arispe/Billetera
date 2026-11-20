@@ -4,7 +4,7 @@
 import { createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
-import { verifyIdentity } from './lib.mjs';
+import { admin, verifyIdentity } from './lib.mjs';
 
 const env = Object.fromEntries(
   readFileSync(new URL('../.env', import.meta.url), 'utf8')
@@ -100,15 +100,21 @@ async function waitHook(type, intentId) {
 console.log('\n== Comercio ==');
 const shop = await newUser('Panadería Sol', '6402');
 const ana = await newUser('Ana Pérez', '4821');
-let r = await call('POST', '/payments/merchants', {
-  token: shop.token,
-  body: { name: 'Panadería Sol', webhookUrl: `http://localhost:${HOOK_PORT}/hook` },
-});
-expect(r.status === 201 && r.data.apiKey.startsWith('sk_test_'), `comercio registrado (${r.data.apiKeyPrefix})`, r.data);
+const adminToken = await admin();
+const merchantBody = { name: 'Panadería Sol', ownerEmail: shop.email, webhookUrl: `http://localhost:${HOOK_PORT}/hook` };
+let r = await call('POST', '/payments/admin/merchants', { token: shop.token, body: merchantBody });
+expect(r.status === 403, 'un usuario común no puede dar de alta comercios', r.data);
+r = await call('POST', '/payments/admin/merchants', { token: adminToken, body: { ...merchantBody, ownerEmail: 'nadie@billetera.local' } });
+expect(r.status === 404, 'la cuenta receptora debe existir', r.data);
+r = await call('POST', '/payments/admin/merchants', { token: adminToken, body: merchantBody });
+expect(r.status === 201 && r.data.apiKey.startsWith('sk_test_'), `el admin registra el comercio (${r.data.apiKeyPrefix})`, r.data);
 const KEY = r.data.apiKey;
 webhookSecret = r.data.webhookSecret;
-r = await call('POST', '/payments/merchants', { token: shop.token, body: { name: 'Otra' } });
-expect(r.status === 409, 'un usuario solo puede tener un comercio', r.data);
+const merchantId = r.data.id;
+r = await call('POST', '/payments/admin/merchants', { token: adminToken, body: { ...merchantBody, name: 'Otra' } });
+expect(r.status === 409, 'una cuenta recibe los cobros de un solo comercio', r.data);
+r = await call('GET', '/payments/merchants/me', { token: shop.token });
+expect(r.status === 200 && r.data.id === merchantId, 'el dueño de la cuenta ve su comercio', r.data);
 
 console.log('\n== Crear cobro (lado POS) ==');
 const items = [
@@ -171,14 +177,14 @@ expect(r.data.items[0].type === 'QR_PAYMENT' && r.data.items[0].counterparty ===
   'el comercio ve el cobro de Ana en su historial', r.data.items[0]);
 
 console.log('\n== Cobro en otra moneda ==');
-r = await call('POST', '/payments/intents', { key: KEY, body: { amount: '1000.00', currency: 'ARS', reference: `${ref}-ars` } });
+r = await call('POST', '/payments/intents', { key: KEY, body: { amount: '20.00', currency: 'BOB', reference: `${ref}-bob` } });
 const arsIntent = r.data;
 r = await call('POST', '/payments/qr/scan', { token: ana.token, body: { qr: arsIntent.qr.payload } });
 const usdForArs = r.data.fundingOptions.find((o) => o.currency === 'USD');
 r = await call('POST', `/payments/qr/${arsIntent.id}/pay`, { token: ana.token, body: { pin: '4821', fundingCurrency: 'USD' } });
 expect(r.status === 200 && r.data.debitedCurrency === 'USD' && r.data.debited === usdForArs.debit,
-  `1000.00 ARS pagados con ${r.data.debited} USD (lo mismo que se le mostró)`, r.data);
-expect((await balance(shop, 'ARS')) === '1000.00', 'el comercio recibió 1000.00 ARS');
+  `20.00 BOB pagados con ${r.data.debited} USD (lo mismo que se le mostró)`, r.data);
+expect((await balance(shop, 'BOB')) === '20.00', 'el comercio recibió 20.00 BOB');
 
 console.log('\n== Cancelación, vencimiento y concurrencia ==');
 r = await call('POST', '/payments/intents', { key: KEY, body: { amount: '3.00', currency: 'USD', reference: `${ref}-c` } });

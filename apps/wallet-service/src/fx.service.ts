@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { CURRENCY_DECIMALS, Currency, SUPPORTED_CURRENCIES } from '@app/common';
 
 /** Tasas de respaldo (1 USD = X) si la API externa no responde. Solo para seguir funcionando offline. */
-const FALLBACK_RATES: Record<Currency, number> = { USD: 1, EUR: 0.86, ARS: 1450 };
+const FALLBACK_RATES: Record<Currency, number> = { BOB: 6.91, USD: 1, EUR: 0.86 };
 const CACHE_MS = 60 * 60 * 1000;
 
 export interface RatesSnapshot {

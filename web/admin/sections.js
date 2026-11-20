@@ -11,8 +11,8 @@ const TYPE_TEXT = {
 };
 const STATUS_TEXT = { ACTIVE: 'Activo', PENDING_EMAIL: 'Sin verificar correo', BLOCKED: 'Bloqueado' };
 const KYC_TEXT = { NOT_STARTED: 'Sin verificar', PENDING: 'En revisión', APPROVED: 'Verificada', REJECTED: 'Rechazada' };
-const fmt = (n, c) => `${c} ${Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const date = (d) => (d ? new Date(d).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }) : '—');
+const fmt = (n, c) => `${c} ${Number(n).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const date = (d) => (d ? new Date(d).toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' }) : '—');
 
 function table(headers, rows) {
   return el('div', { className: 'table-wrap' }, el('table', { className: 'list static' },
@@ -136,19 +136,97 @@ export async function showTransactions(view, type = '') {
 }
 
 // ------------------------------------------------------------------ comercios
-export async function showMerchants(view) {
+// Un "comercio" es un sistema externo (POS / facturación) que cobra con QR mediante la API.
+// Solo el admin lo da de alta: elige la cuenta de la billetera que recibe el dinero y entrega
+// la API key y el secreto de webhooks para configurar en ese sistema.
+export async function showMerchants(view, notice = null) {
   const [data, users] = await Promise.all([api('GET', '/payments/admin/merchants'), api('GET', '/auth/admin/users')]);
   const names = new Map(users.items.map((u) => [u.id, u.email]));
-  view.replaceChildren(el('section', { className: 'card' },
-    el('h1', { textContent: `Comercios (${data.items.length})` }),
-    data.failedWebhooks
-      ? el('p', { className: 'alert', textContent: `${data.failedWebhooks} webhook(s) agotaron sus reintentos sin entregarse.` })
-      : null,
-    data.items.length
-      ? table(['Comercio', 'Dueño', 'Cobros', 'Pagados', 'Volumen cobrado', 'Webhook', 'Última actividad'], data.items.map((m) => el('tr', {},
-          td(m.name), td(names.get(m.ownerUserId) ?? m.ownerUserId.slice(0, 8)), td(String(m.intents)), td(String(m.paid)),
-          td(m.volume.map((v) => fmt(v.total, v.currency)).join(' · ') || '—'),
-          td(m.webhookUrl ?? 'sin configurar', 'small break'), td(date(m.lastActivity)))))
-      : el('p', { className: 'muted', textContent: 'Todavía no hay comercios.' }),
-  ));
+  const reload = (n) => showMerchants(view, n).catch((e) => alert(e.message));
+
+  const rotate = async (m) => {
+    if (!confirm(`La API key actual de "${m.name}" dejará de funcionar. ¿Generar una nueva?`)) return;
+    reload(await api('POST', `/payments/admin/merchants/${m.id}/rotate-key`));
+  };
+  const editWebhook = async (m) => {
+    const url = prompt(`URL de webhooks de "${m.name}" (vacío para quitarla):`, m.webhookUrl ?? '');
+    if (url === null) return;
+    await api('PATCH', `/payments/admin/merchants/${m.id}`, { webhookUrl: url.trim() });
+    reload();
+  };
+
+  const form = el('form', { className: 'merchant-form' },
+    el('label', {}, 'Nombre del comercio', el('input', { name: 'name', required: true, minLength: 2, placeholder: 'Mi Empresa S.R.L.' })),
+    el('label', {}, 'Cuenta que recibe el dinero (correo de la billetera)',
+      el('input', { name: 'ownerEmail', type: 'email', required: true, placeholder: 'caja@miempresa.bo' })),
+    el('label', {}, 'URL de webhooks del POS',
+      el('input', { name: 'webhookUrl', placeholder: 'https://mi-pos.com/api/billetera/webhook' })),
+    el('p', { className: 'alert hidden', role: 'alert' }),
+    el('button', { className: 'primary', type: 'submit', textContent: 'Dar de alta y generar API key' }),
+  );
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = new FormData(form);
+    const err = form.querySelector('.alert');
+    err.classList.add('hidden');
+    try {
+      reload(await api('POST', '/payments/admin/merchants', {
+        name: f.get('name'), ownerEmail: f.get('ownerEmail'), webhookUrl: f.get('webhookUrl') || undefined,
+      }));
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.classList.remove('hidden');
+    }
+  });
+
+  view.replaceChildren(
+    notice ? credentials(notice) : null,
+    el('section', { className: 'card' },
+      el('h1', { textContent: `Comercios (${data.items.length})` }),
+      data.failedWebhooks
+        ? el('p', { className: 'alert', textContent: `${data.failedWebhooks} webhook(s) agotaron sus reintentos sin entregarse.` })
+        : null,
+      data.items.length
+        ? table(['Comercio', 'Cuenta receptora', 'Cobros', 'Pagados', 'Volumen cobrado', 'Webhook', 'Última actividad', ''], data.items.map((m) => el('tr', {},
+            td(m.name), td(names.get(m.ownerUserId) ?? m.ownerUserId.slice(0, 8)), td(String(m.intents)), td(String(m.paid)),
+            td(m.volume.map((v) => fmt(v.total, v.currency)).join(' · ') || '—'),
+            td(m.webhookUrl ?? 'sin configurar', 'small break'), td(date(m.lastActivity)),
+            el('td', { className: 'row-actions' },
+              button('Webhook', () => editWebhook(m)),
+              button('Nueva API key', () => rotate(m)),
+            ))))
+        : el('p', { className: 'muted', textContent: 'Todavía no hay comercios.' }),
+    ),
+    el('section', { className: 'card' },
+      el('h2', { textContent: 'Nuevo comercio' }),
+      el('p', { className: 'muted small', textContent:
+        'Conecta un POS o sistema de facturación. Primero crea (o elige) la cuenta de la billetera donde se acreditarán los cobros.' }),
+      form,
+    ),
+  );
+}
+
+function button(text, onClick) {
+  const b = el('button', { className: 'small', type: 'button', textContent: text });
+  b.addEventListener('click', () => onClick().catch((e) => alert(e.message)));
+  return b;
+}
+
+/** Credenciales recién generadas: se muestran una sola vez. */
+function credentials(m) {
+  const row = (label, value) => {
+    const copy = el('button', { className: 'small', type: 'button', textContent: 'Copiar' });
+    copy.addEventListener('click', () => navigator.clipboard.writeText(value).then(() => (copy.textContent = '✓ Copiado')));
+    return [el('dt', { textContent: label }), el('dd', {}, el('code', { className: 'break', textContent: value }), ' ', copy)];
+  };
+  return el('section', { className: 'card highlight' },
+    el('h2', { textContent: `Credenciales de "${m.name}"` }),
+    el('p', { className: 'alert', textContent: 'Copia la API key ahora: por seguridad no se vuelve a mostrar.' }),
+    el('dl', { className: 'kv' },
+      ...row('ID del comercio', m.id),
+      ...row('BILLETERA_API_KEY', m.apiKey),
+      ...row('BILLETERA_WEBHOOK_SECRET', m.webhookSecret),
+      ...row('BILLETERA_API_URL', `${location.origin}/api`),
+    ),
+  );
 }

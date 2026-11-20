@@ -72,7 +72,7 @@ expect(ana.token && beto.token, 'Ana y Beto registrados y con sesión');
 
 let r = await call('GET', '/wallet/accounts', { token: ana.token });
 expect(r.status === 200 && r.data.length === 3 && r.data.every((a) => a.balance === '0.00'),
-  'cuentas USD/EUR/ARS creadas en 0.00', r.data);
+  'cuentas USD/EUR/BOB creadas en 0.00', r.data);
 
 console.log('\n== Tarjeta antes de cumplir requisitos ==');
 r = await call('GET', '/cards/eligibility', { token: ana.token });
@@ -109,16 +109,16 @@ expect(r.status === 400, 'no se puede enviar a uno mismo', r.data);
 
 console.log('\n== Cambio de divisas ==');
 r = await call('GET', '/wallet/fx/rates', { token: ana.token });
-const usdArs = r.data.pairs.find((p) => p.from === 'USD' && p.to === 'ARS');
-expect(r.status === 200 && usdArs.customer < usdArs.mid, `tasas (${r.data.source}): 1 USD = ${usdArs.mid} ARS, cliente ${usdArs.customer}`, r.data);
-r = await call('POST', '/wallet/fx/quotes', { token: ana.token, body: { from: 'USD', to: 'ARS', amount: '10.00' } });
-expect(r.status === 201 && r.data.quoteId, `cotización: 10 USD -> ${r.data.amountTo} ARS`, r.data);
+const usdBob = r.data.pairs.find((p) => p.from === 'USD' && p.to === 'BOB');
+expect(r.status === 200 && usdBob.customer < usdBob.mid, `tasas (${r.data.source}): 1 USD = ${usdBob.mid} BOB, cliente ${usdBob.customer}`, r.data);
+r = await call('POST', '/wallet/fx/quotes', { token: ana.token, body: { from: 'USD', to: 'BOB', amount: '10.00' } });
+expect(r.status === 201 && r.data.quoteId, `cotización: 10 USD -> ${r.data.amountTo} BOB`, r.data);
 const quoteId = r.data.quoteId;
 r = await call('POST', '/wallet/fx/convert', { token: ana.token, body: { quoteId } });
 expect(r.status === 200 && r.data.type === 'FX_CONVERSION', 'conversión ejecutada', r.data);
 r = await call('POST', '/wallet/fx/convert', { token: ana.token, body: { quoteId } });
 expect(r.status === 400, 'la cotización no se puede usar dos veces', r.data);
-expect((await balance(ana, 'USD')) === '65.00' && (await balance(ana, 'ARS')) !== '0.00', 'saldos tras el cambio: 65 USD + ARS');
+expect((await balance(ana, 'USD')) === '65.00' && (await balance(ana, 'BOB')) !== '0.00', 'saldos tras el cambio: 65 USD + BOB');
 
 console.log('\n== Apartado Tarjetas ==');
 r = await call('GET', '/cards/eligibility', { token: ana.token });

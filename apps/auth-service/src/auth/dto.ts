@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsEmail, IsString, IsUUID, Length, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsString, Length, Matches, MaxLength, MinLength } from 'class-validator';
 
 const normalizeEmail = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim().toLowerCase() : value;
@@ -54,16 +54,6 @@ export class LoginDto {
   @IsString()
   @MaxLength(72)
   password!: string;
-}
-
-export class LoginVerifyDto {
-  @ApiProperty({ description: 'challengeId devuelto por /auth/login' })
-  @IsUUID()
-  challengeId!: string;
-
-  @ApiProperty({ example: '123456' })
-  @Matches(/^\d{6}$/, { message: 'El código tiene 6 dígitos' })
-  code!: string;
 }
 
 export class RefreshDto {

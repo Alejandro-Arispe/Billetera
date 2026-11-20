@@ -6,7 +6,7 @@ import { Currency, SUPPORTED_CURRENCIES } from './constants';
  * Internamente todo va en "unidades menores" enteras (centavos).
  * La API recibe y devuelve montos como string con 2 decimales: "12.50".
  */
-export const CURRENCY_DECIMALS: Record<Currency, number> = { USD: 2, EUR: 2, ARS: 2 };
+export const CURRENCY_DECIMALS: Record<Currency, number> = { BOB: 2, USD: 2, EUR: 2 };
 
 export const AMOUNT_REGEX = /^\d{1,12}(\.\d{1,2})?$/;
 
@@ -17,7 +17,7 @@ export function isCurrency(value: string): value is Currency {
 /** "12.5" USD -> 1250 */
 export function toMinor(amount: string, currency: Currency): number {
   if (!AMOUNT_REGEX.test(amount)) throw new BadRequestException(`Monto inválido: ${amount}`);
-  const decimals = CURRENCY_DECIMALS[currency];
+  const decimals = CURRENCY_DECIMALS[currency] ?? 2; // monedas retiradas (datos viejos) usan 2
   const [int, frac = ''] = amount.split('.');
   const minor = Number(int) * 10 ** decimals + Number(frac.padEnd(decimals, '0'));
   if (!Number.isSafeInteger(minor)) throw new BadRequestException('Monto fuera de rango');
@@ -26,7 +26,7 @@ export function toMinor(amount: string, currency: Currency): number {
 
 /** 1250 USD -> "12.50" */
 export function fromMinor(minor: number, currency: Currency): string {
-  const decimals = CURRENCY_DECIMALS[currency];
+  const decimals = CURRENCY_DECIMALS[currency] ?? 2; // monedas retiradas (datos viejos) usan 2
   const sign = minor < 0 ? '-' : '';
   const abs = Math.abs(minor);
   const int = Math.floor(abs / 10 ** decimals);
